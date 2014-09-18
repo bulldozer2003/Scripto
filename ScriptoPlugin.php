@@ -534,30 +534,37 @@ class ScriptoPlugin extends Omeka_Plugin_AbstractPlugin
     {
         // Check size via local path to avoid to use the server.
         $imagePath = realpath(FILES_DIR . DIRECTORY_SEPARATOR . get_option('scripto_file_source_path') . DIRECTORY_SEPARATOR . $file->filename);
-        $imageSize = ScriptoPlugin::getImageSize($imagePath, 250);
+        $imageSize = ScriptoPlugin::getImageSize($imagePath);
         // Image to send.
         $imageUrl = $file->getWebPath(get_option('scripto_file_source'));
 ?>
+<div id="map" class="map"></div>
 <script type="text/javascript">
-jQuery(document).ready(function() {
-    var scriptoMap = new OpenLayers.Map('scripto-openlayers', {
-        controls: [
-            new OpenLayers.Control.Navigation(),
-            new OpenLayers.Control.PanZoom(),
-            new OpenLayers.Control.KeyboardDefaults()
-        ]
-    });
-    var graphic = new OpenLayers.Layer.Image(
-        'Document Page',
-        <?php echo js_escape($imageUrl); ?>,
-        new OpenLayers.Bounds(-<?php echo $imageSize['width']; ?>, -<?php echo $imageSize['height']; ?>, <?php echo $imageSize['width']; ?>, <?php echo $imageSize['height']; ?>),
-        new OpenLayers.Size(<?php echo $imageSize['width']; ?>, <?php echo $imageSize['height']; ?>)
-    );
-    scriptoMap.addLayers([graphic]);
-    scriptoMap.zoomToMaxExtent();
-});
+        var pixelProjection = new ol.proj.Projection({
+          code: 'pixel',
+          units: 'pixels',
+          extent: [0, 0, <?php echo $imageSize['width']; ?>, <?php echo $imageSize['height']; ?>]
+        });
+
+        var map = new ol.Map({
+          layers: [
+            new ol.layer.Image({
+              source: new ol.source.ImageStatic({
+                url: '<?php echo $imageUrl; ?>',
+                imageSize: [<?php echo $imageSize['width']; ?>, <?php echo $imageSize['height']; ?>],
+                projection: pixelProjection,
+                imageExtent: pixelProjection.getExtent()
+              })
+            })
+          ],
+          target: 'map',
+          view: new ol.View({
+            projection: pixelProjection,
+            center: ol.extent.getCenter(pixelProjection.getExtent()),
+            zoom: 1
+          })
+        });
 </script>
-<div id="scripto-openlayers" class="<?php echo get_option('scripto_viewer_class'); ?>"></div>
 <?php
     }
 
@@ -658,8 +665,8 @@ jQuery(document).ready(function() {
         if (is_int($width)) {
             $height = round(($width * $size[1]) / $size[0]);
         } else {
-            $width = $size[1];
-            $height = $size[0];
+            $width = $size[0];
+            $height = $size[1];
         }
         return array('width' => $width, 'height' => $height);
     }
